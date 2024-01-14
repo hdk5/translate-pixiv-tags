@@ -705,9 +705,10 @@ const API_LIMIT = 1000;
  * @typedef {object} ResponseArtist
  * @prop {number} id
  * @prop {string} name
- * @prop {boolean} is_banned
  * @prop {string[]} other_names
  * @prop {Array<{ url: string, is_active: boolean }>} urls
+ * @prop {object} tag
+ * @prop {Array<{ consequent_name: "banned_artist" }>} tag.antecedent_implications
  */
 /**
  * @typedef {object} ResponseTag
@@ -832,7 +833,7 @@ const NETWORK_REQUEST_DICT = {
     },
     artist: {
         url: "/artists",
-        fields: "id,name,is_banned,other_names,urls[url,is_active]",
+        fields: "id,name,other_names,urls[url,is_active],tag[antecedent_implications[consequent_name]]",
         params (nameList) {
             return {
                 search: {
@@ -879,7 +880,7 @@ const NETWORK_REQUEST_DICT = {
     },
     url: {
         url: "/artists",
-        fields: "id,name,is_deleted,is_banned,other_names,urls[url,is_active]",
+        fields: "id,name,is_deleted,other_names,urls[url,is_active],tag[antecedent_implications[consequent_name]]",
         params (urlList) {
             return {
                 search: {
@@ -1796,6 +1797,7 @@ const renderedArtistsCache = {};
  *      prettyName: string,
  *      escapedName: string,
  *      encodedName: string,
+ *      isBanned: boolean,
  *  }} TranslatedArtist
  * */
 /**
@@ -1820,9 +1822,10 @@ function addDanbooruArtist ($target, rawArtist, options) {
         prettyName: rawArtist.name.replaceAll("_", " "),
         escapedName: _.escape(rawArtist.name.replaceAll("_", " ")),
         encodedName: encodeURIComponent(rawArtist.name),
+        isBanned: _.pluck(rawArtist.tag.antecedent_implications, "consequent_name").includes("banned_artist"),
     };
 
-    classes += artist.is_banned ? " ex-artist-tag ex-banned-artist-tag" : " ex-artist-tag";
+    classes += artist.isBanned ? " ex-artist-tag ex-banned-artist-tag" : " ex-artist-tag";
 
     const $duplicates = findTag($target)
         .filter((i, el) => el.textContent?.trim() === artist.escapedName);
@@ -2308,7 +2311,7 @@ async function buildArtistTooltipContent (artist) {
 
     const waitPosts = queueNetworkRequestMemoized("post", `${artist.name} 1`);
     const waitTotalPostCount = queueNetworkRequestMemoized("count", `${artist.name} status:any`);
-    const waitVisiblePostCount = artist.is_banned
+    const waitVisiblePostCount = artist.isBanned
         ? Promise.resolve({ counts: { posts: 0 } })
         : queueNetworkRequestMemoized("count", `${artist.name} ${status} ${rating}`.trim());
 
